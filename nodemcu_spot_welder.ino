@@ -13,8 +13,9 @@
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 
-#define RELAY_PIN 10
-#define TRIGGER_BUTTON_PIN 6
+#define TRIGGER_BUTTON_PIN 13
+#define RELAY_PIN 15
+
 
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
@@ -24,6 +25,8 @@ AiEsp32RotaryEncoder rotaryEncoder = AiEsp32RotaryEncoder(ROTARY_ENCODER_A_PIN, 
 long relayMilliseconds = 0;
 long loopCount = 0;
 bool relayOn = false;
+int buttonCurrent = HIGH;
+int buttonPrev = HIGH;
 
 void IRAM_ATTR readEncoderISR()
 {
@@ -48,6 +51,10 @@ void setup() {
 	rotaryEncoder.setup(readEncoderISR);
   rotaryEncoder.setBoundaries(0, 500, circleValues); //minValue, maxValue, circleValues true|false (when max go to min and vice versa)
   // rotaryEncoder.disableAcceleration();
+
+  pinMode(TRIGGER_BUTTON_PIN, INPUT_PULLUP);
+  pinMode(RELAY_PIN, OUTPUT);
+  digitalWrite(RELAY_PIN, LOW);
 }
 
 void printEncoderReading() {
@@ -58,17 +65,28 @@ void printEncoderReading() {
   display.display();
 }
 
+void triggerRelay() {
+  int buttonCurrent = digitalRead(TRIGGER_BUTTON_PIN);
+  if (buttonCurrent == LOW && buttonPrev == HIGH) {
+    // Flip relay pin
+    Serial.println("Relay on");
+    display.println("WELDING");
+    display.display();
+    digitalWrite(RELAY_PIN, HIGH);
+    delay(relayMilliseconds);
+    digitalWrite(RELAY_PIN, LOW);
+    Serial.println("Relay off");
+    // Flip relay pin    
+  }
+
+  buttonPrev = buttonCurrent;
+}
+
 void loop() {
   // rotary_loop();
   relayMilliseconds = rotaryEncoder.readEncoder() * 10;
   loopCount = loopCount + 1;
   printEncoderReading();
 
-  if (rotaryEncoder.isEncoderButtonClicked()) {
-    // Flip relay pin
-    Serial.println("Relay on");
-    delay(relayMilliseconds);
-    Serial.println("Relay off");
-    // Flip relay pin    
-  }
+  triggerRelay();
 }
