@@ -21,8 +21,9 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
 Encoder rotaryEncoder(ROTARY_ENCODER_A_PIN, ROTARY_ENCODER_B_PIN);
 
-long prevMilliseconds = 0;
-long relayMilliseconds = 0;
+long prevMillis = 0;
+long relayMillis = 0;
+long startMillis = 0;
 long loopCount = 0;
 bool prevRelayOn = false;
 bool relayOn = false;
@@ -34,7 +35,7 @@ void printEncoderReading() {
   display.setCursor(0, 15);
   
   display.println(".V.Burninator.V.");
-  display.println((String)relayMilliseconds + " ms");
+  display.println((String)relayMillis + " ms");
   
   if (relayOn) {
     display.println("Relay: BURN");
@@ -46,6 +47,8 @@ void printEncoderReading() {
 
 void setup() {
   Serial.begin(115200);
+
+  rotaryEncoder.write(20);
 
   if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3D for 128x64
     Serial.println(F("SSD1306 allocation failed"));
@@ -69,7 +72,7 @@ void checkButton() {
   int buttonCurrent = digitalRead(TRIGGER_BUTTON_PIN);
   prevRelayOn = relayOn;
 
-  if (buttonCurrent == LOW && buttonPrev == HIGH) {
+  if (buttonCurrent == LOW && buttonPrev == HIGH && relayMillis > 0) {
     relayOn = true;
   }
 
@@ -77,17 +80,19 @@ void checkButton() {
 }
 
 void triggerRelay() {
-  if (relayOn) {
+  if (relayOn && startMillis == 0) {
     // Flip relay pin
     Serial.println("Relay on");
-    printEncoderReading();
-    
+    startMillis = millis();
     digitalWrite(RELAY_PIN, HIGH);
-    delay(relayMilliseconds);
-    digitalWrite(RELAY_PIN, LOW);
+    printEncoderReading();
+  }
 
+  long elapsedTime = millis() - startMillis;
+  if (relayOn && elapsedTime >= relayMillis) {
+    digitalWrite(RELAY_PIN, LOW);
+    startMillis = 0;
     relayOn = false;
-    
     Serial.println("Relay off");
     printEncoderReading();
   }
@@ -98,20 +103,20 @@ void loop() {
   long reading = rotaryEncoder.read();
 
   if (reading < 0){
-    relayMilliseconds = 0;
+    relayMillis = 0;
     rotaryEncoder.write(0);
   } else {
-    relayMilliseconds = (reading / 4) * 10;
+    relayMillis = (reading / 4) * 10;
   }
 
   loopCount = loopCount + 1;
 
   checkButton();
 
-  if (prevMilliseconds != relayMilliseconds) {
+  if (prevMillis != relayMillis) {
     printEncoderReading();
   }
-  prevMilliseconds = relayMilliseconds;
+  prevMillis = relayMillis;
 
   triggerRelay();
 }
