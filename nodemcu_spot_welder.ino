@@ -27,8 +27,8 @@ long startMillis = 0;
 long loopCount = 0;
 bool prevRelayOn = false;
 bool relayOn = false;
-int buttonCurrent = HIGH;
-int buttonPrev = HIGH;
+int button = LOW;
+int buttonPrev = LOW;
 
 void printEncoderReading() {
   display.clearDisplay();
@@ -69,14 +69,13 @@ void setup() {
 }
 
 void checkButton() {
-  int buttonCurrent = digitalRead(TRIGGER_BUTTON_PIN);
-  prevRelayOn = relayOn;
+  int button = digitalRead(TRIGGER_BUTTON_PIN);
 
-  if (buttonCurrent == LOW && buttonPrev == HIGH && relayMillis > 0) {
+  if (button == LOW && !relayOn && button != buttonPrev) {
     relayOn = true;
   }
 
-  buttonPrev = buttonCurrent;
+  buttonPrev = button;
 }
 
 void triggerRelay() {
